@@ -25,6 +25,7 @@ Five `workflow_call`-only files in this repo's `.github/workflows/`, each a sing
 | 5 | Release/tagging | **Manual**: annotated `vX.Y.Z`, then `git tag -f v1 && git push origin v1 --force` after validation | Release automation in this repo | Automation would need self-CI (explicit non-goal) and would force-move `v1` without human validation; single maintainer, rare releases. Revisit at second consumer. |
 | 6 | Consumption example | Yes — worked go-hadolint-poc example in `README.md`, documentation only | No example / editing go-hadolint-poc | The manual access prerequisite fails opaquely; a concrete snippet is the cheapest diagnosis aid. go-hadolint-poc is NOT modified by this change. |
 | 7 | `runs-on` | Hardcoded `ubuntu-latest` | `runner` input | No self-hosted fleet; unvalidated surface. |
+| 8 | `build-push-action` image visibility | `load: true` alongside `push: false` | `push: false` alone | With `push: false` only, the built image stays in the buildx cache, invisible to the `docker run` smoke-test step. `load: true` loads it into the local Docker daemon so `IMAGE_REF` (decision #2) is actually runnable. |
 
 ## Data Flow
 
