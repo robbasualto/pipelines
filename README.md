@@ -10,17 +10,21 @@ minimal job-level `permissions`, and no app-specific logic. `permissions:`
 are **not** inherited from the caller — each consumer job must declare the
 permissions block documented below for every workflow it invokes.
 
-## Repository Access Prerequisite
+## Repository Visibility
 
-Before any private consumer repository can invoke these workflows, this
-repository's **Settings → Actions → General → Access** must be set to
-**"Accessible from repositories owned by the user."**
+This repository is **public**, deliberately. GitHub's private-repo
+`Settings → Actions → General → Access` policy only allows `access_level:
+user` to grant **"sharing across user owned private repositories only"**
+(per GitHub's REST API docs) — it does not cover a public caller invoking a
+private repo's reusable workflows. `go-hadolint-poc`, the first real
+consumer, is public, so keeping `pipelines` private would silently block it
+(instant failure, `workflow was not found`, no job ever created). Making
+`pipelines` public removes the access check entirely: any repository,
+regardless of owner or visibility, can invoke these workflows.
 
-If this setting is not enabled, a consumer invoking any workflow below will
-fail with an opaque workflow-not-found / permission error — not a silent
-no-op. If you see a failure like `workflow was not found` or a resolution
-error referencing one of these workflow paths, check this setting first
-before debugging the caller workflow itself.
+If a future consumer set is private-only, private + the `user` access level
+is a valid alternative — but the moment any public repo needs to call in,
+`pipelines` itself must be public too.
 
 ## Versioning
 
@@ -37,8 +41,8 @@ A breaking change ships under a new major tag (e.g. `@v2`); `@v1` keeps
 pointing at the last compatible release.
 
 **No `v1` tag exists yet.** Until the first release is tagged, consumers
-must reference workflows at `@main` (see the worked example below), with
-the explicit understanding that `@main` is unstable and unsupported once
+must reference workflows at `@master` (see the worked example below), with
+the explicit understanding that `@master` is unstable and unsupported once
 `v1` exists.
 
 ### Manual tagging steps (maintainer only)
@@ -210,7 +214,7 @@ jobs:
 
 This snippet shows how `go-hadolint-poc` **would** consume these workflows.
 It is documentation only — `go-hadolint-poc` is not modified by this
-change, and since no `v1` tag exists yet, the example pins to `@main`
+change, and since no `v1` tag exists yet, the example pins to `@master`
 (unstable, for illustration/scratch-testing purposes only; switch to `@v1`
 once it exists).
 
@@ -226,23 +230,23 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@main
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@master
 
   go-lint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@main
+    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@master
 
   hadolint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@main
+    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@master
 
   docker-build:
     needs: [go-build-test, go-lint, hadolint]
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@main
+    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@master
     with:
       image-tag: go-hadolint-poc:${{ github.sha }}
       smoke-test-command: "docker run --rm go-hadolint-poc:${{ github.sha }} --version"
@@ -250,7 +254,7 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@main
+    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@master
 ```
 
 Notes on this graph:

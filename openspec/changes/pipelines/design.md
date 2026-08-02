@@ -78,12 +78,12 @@ Five `workflow_call`-only files in this repo's `.github/workflows/`, each a sing
 
 ## Migration / Rollout
 
-1. **Manual prerequisite (not automatable):** Settings → Actions → General → Access → "Accessible from repositories owned by the user". `sdd-apply` cannot satisfy this; it must be a checklist task with README troubleshooting.
-2. Merge workflows to `main`; validate with a scratch caller using `@main`.
-3. Tag `v1.0.0`, then create moving `v1`. `@main` is unsupported afterwards.
+1. ~~Manual prerequisite: Settings → Actions → General → Access → "Accessible from repositories owned by the user".~~ **Superseded during verification**: this repo's default branch is `master`, not `main` (inherited from local `init.defaultBranch`) — fixed below. More importantly, the `access_level: user` policy only permits **private-to-private** sharing per GitHub's own REST API docs ("access allows sharing across user owned private repositories only"). `go-hadolint-poc`, the first real consumer, is **public** — a public caller does not qualify under that policy regardless of the setting. Cross-repo invocation failed instantly (`referenced_workflows: []`) until `pipelines` itself was made **public**, which requires no Access setting at all. Decision: keep `pipelines` public going forward; the private+access-level path only applies if every future consumer is also private.
+2. Workflows live on `master` (this repo's actual default branch); validate with a scratch caller using `@master`, not `@main`. (Confirmed working: a disposable branch in `go-hadolint-poc` calling `hadolint.yml@master` succeeded end-to-end.)
+3. Tag `v1.0.0`, then create moving `v1`. `@master` remains valid after tagging (v1 is additive, not a replacement); `@master` should still be avoided by consumers post-v1 for stability, but is not "unsupported."
 4. Rollback: re-point `v1` to the previous tag; never force-move `v1` onto a breaking change.
 
 ## Open Questions
 
-- [ ] Confirm during apply whether `trivy-action@v0.36.0` exposes a `version` input; if yes, `trivy-version` may be reinstated as an input (Decision 1).
+- [x] Confirm during apply whether `trivy-action@v0.36.0` exposes a `version` input — **confirmed yes** (fetched `action.yaml` from the pinned tag directly), `trivy-version` is implemented as an input in `docker-build.yml`.
 - [ ] Proposal question round (smoke scope, gitleaks ownership, `@v1` vs SHA pinning) remains unanswered; design assumes the proposal's defaults.
