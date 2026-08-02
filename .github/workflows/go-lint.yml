@@ -1,0 +1,51 @@
+name: Go Lint
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: "Go toolchain version to install."
+        type: string
+        default: "1.26.5"
+      golangci-lint-version:
+        description: "golangci-lint version to install and run."
+        type: string
+        default: "v2.12.2"
+      working-directory:
+        description: "Directory containing the Go module to lint."
+        type: string
+        default: "."
+
+permissions:
+  contents: read
+
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Check formatting (gofmt)
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: ${{ inputs.golangci-lint-version }}
+          working-directory: ${{ inputs.working-directory }}

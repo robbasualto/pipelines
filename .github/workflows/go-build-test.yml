@@ -1,0 +1,41 @@
+name: Go Build & Test
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: "Go toolchain version to install."
+        type: string
+        default: "1.26.5"
+      working-directory:
+        description: "Directory containing the Go module to build/vet/test."
+        type: string
+        default: "."
+
+permissions:
+  contents: read
+
+jobs:
+  go-build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./... -cover

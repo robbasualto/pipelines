@@ -1,0 +1,61 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        description: "Tag to apply to the locally built image (also exposed as IMAGE_REF)."
+        type: string
+        required: true
+      context:
+        description: "Docker build context."
+        type: string
+        default: "."
+      dockerfile-path:
+        description: "Path to the Dockerfile to build."
+        type: string
+        default: "Dockerfile"
+      smoke-test-command:
+        description: "Optional shell command to smoke-test the built image. Skipped when empty."
+        type: string
+        default: ""
+      trivy-version:
+        description: "Trivy version to install for the report-only vulnerability scan."
+        type: string
+        default: "v0.70.0"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      IMAGE_REF: ${{ inputs.image-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile-path }}
+          push: false
+          tags: ${{ inputs.image-tag }}
+          load: true
+
+      - name: Smoke test
+        if: inputs.smoke-test-command != ''
+        env:
+          SMOKE_TEST_COMMAND: ${{ inputs.smoke-test-command }}
+        run: bash -c "$SMOKE_TEST_COMMAND"
+
+      - name: Trivy vulnerability scan (report-only)
+        uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          version: ${{ inputs.trivy-version }}
+          exit-code: "0"

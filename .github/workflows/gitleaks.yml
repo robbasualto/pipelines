@@ -1,0 +1,26 @@
+name: Gitleaks
+
+on:
+  workflow_call:
+    secrets:
+      gh_token:
+        description: "Optional token used to resolve PR diffs. Falls back to github.token when omitted."
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token || github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3.0.0

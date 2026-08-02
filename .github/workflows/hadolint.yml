@@ -1,0 +1,25 @@
+name: Hadolint
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile-path:
+        description: "Path to the Dockerfile to lint."
+        type: string
+        default: "Dockerfile"
+
+permissions:
+  contents: read
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ inputs.dockerfile-path }}

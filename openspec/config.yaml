@@ -1,0 +1,52 @@
+# SDD config for pipelines
+schema: spec-driven
+
+context: |
+  Repo: github.com/robbasualto/pipelines (private, empty at init)
+  Purpose: shared/reusable GitHub Actions CI/CD pipeline library.
+  Stack: none/infra-as-code — YAML reusable workflows (workflow_call) and
+  possibly composite actions under .github/workflows/. No application code.
+  Consumers: all future services reference via
+  `uses: robbasualto/pipelines/.github/workflows/<name>.yml@<ref>`.
+  Testing: no test runner (infra-as-code repo, analogous to nexus-k8s).
+
+strict_tdd: false
+
+testing:
+  test_runner: none
+  test_layers:
+    unit: false
+    integration: false
+    e2e: false
+  coverage: none
+  quality_tools:
+    linter: none (candidate: actionlint for workflow YAML)
+    type_checker: none
+    formatter: none (candidate: yamllint/prettier for YAML)
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Note the semver/ref strategy for any consuming service impact (tags vs. branches)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Treat each reusable workflow/composite action's inputs, outputs, and secrets as its own contract surface
+  design:
+    - Document trigger events (workflow_call inputs/secrets) and job dependency graph
+    - Document versioning/tagging strategy for consumers pinning to @<ref>
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Validate YAML syntax before commit (actionlint / yamllint if available)
+      - Keep workflows minimal and composable; avoid embedding app-specific logic
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
