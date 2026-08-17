@@ -28,7 +28,7 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
     with:
       runner: ubuntu-latest
 ```
@@ -91,19 +91,19 @@ is a valid alternative — but the moment any public repo needs to call in,
 Consumers reference workflows as:
 
 ```yaml
-uses: robbasualto/pipelines/.github/workflows/<name>.yml@v1
+uses: robbasualto/pipelines/.github/workflows/<name>.yml@v1.0.1
 ```
 
-`@v1` is a moving major tag that only ever advances to non-breaking
-releases. It is never force-moved onto a change that alters an existing
-input's meaning, removes an input/output, or changes pass/fail semantics.
-A breaking change ships under a new major tag (e.g. `@v2`); `@v1` keeps
-pointing at the last compatible release.
+`v1.0.1` is the current immutable release and the first published release
+containing the configurable `runner` input. Pin it when reproducibility and
+an explicit release boundary matter.
 
-**No `v1` tag exists yet.** Until the first release is tagged, consumers
-must reference workflows at `@master` (see the worked example below), with
-the explicit understanding that `@master` is unstable and unsupported once
-`v1` exists.
+`@v1` is a moving major tag that only ever advances to non-breaking releases.
+It is never force-moved onto a change that alters an existing input's meaning,
+removes an input/output, or changes pass/fail semantics. A breaking change
+ships under a new major tag (e.g. `@v2`); `@v1` keeps pointing at the last
+compatible release. This README does not assume that `@v1` has advanced to
+`v1.0.1`; moving a major tag requires an explicit maintainer release action.
 
 ### Manual tagging steps (maintainer only)
 
@@ -113,9 +113,11 @@ the explicit understanding that `@master` is unstable and unsupported once
    git tag -a vX.Y.Z -m "vX.Y.Z"
    git push origin vX.Y.Z
    ```
-3. Move the moving major tag onto it (only for non-breaking releases):
+3. As a separate, explicit maintainer release action, optionally move the
+   moving major tag onto it (only for non-breaking releases). Do not perform
+   this step merely because an immutable release was published:
    ```bash
-   git tag -f v1
+   git tag -f v1 vX.Y.Z
    git push origin v1 --force
    ```
 4. Rollback: re-point `v1` at the previous compatible tag. Never force-move
@@ -142,7 +144,7 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
 ```
 
 ### `go-lint.yml`
@@ -165,7 +167,7 @@ jobs:
   go-lint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.1
     with:
       golangci-lint-version: v2.13.0 # optional override, no pipelines release needed
 ```
@@ -191,7 +193,7 @@ jobs:
   hadolint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.1
 ```
 
 ### `docker-build.yml`
@@ -236,7 +238,7 @@ jobs:
     needs: [go-build-test, go-lint, hadolint]
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.1
     with:
       image-tag: go-hadolint-poc:ci
       smoke-test-command: "docker run --rm go-hadolint-poc:ci --version"
@@ -266,7 +268,7 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1
+    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.1
     # secrets: inherit  # optional — omitting it still works via github.token fallback
 ```
 
@@ -274,9 +276,8 @@ jobs:
 
 This snippet shows how `go-hadolint-poc` **would** consume these workflows.
 It is documentation only — `go-hadolint-poc` is not modified by this
-change, and since no `v1` tag exists yet, the example pins to `@master`
-(unstable, for illustration/scratch-testing purposes only; switch to `@v1`
-once it exists).
+change, and the example pins to the current immutable runner-capable release
+`@v1.0.1`.
 
 ```yaml
 # go-hadolint-poc/.github/workflows/ci.yml (illustrative — not applied)
@@ -290,23 +291,23 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@master
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
 
   go-lint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@master
+    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.1
 
   hadolint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@master
+    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.1
 
   docker-build:
     needs: [go-build-test, go-lint, hadolint]
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@master
+    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.1
     with:
       image-tag: go-hadolint-poc:${{ github.sha }}
       smoke-test-command: "docker run --rm go-hadolint-poc:${{ github.sha }} --version"
@@ -314,7 +315,7 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@master
+    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.1
 ```
 
 Notes on this graph:
