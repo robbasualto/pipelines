@@ -5,10 +5,70 @@ Reusable GitHub Actions CI/CD workflow library for repositories owned by
 `workflow_call`-only workflows that consumer repositories invoke from their
 own `ci.yml`.
 
-Every workflow is a single job on `ubuntu-latest` with `timeout-minutes: 15`,
-minimal job-level `permissions`, and no app-specific logic. `permissions:`
+Every workflow is a single job that defaults to `ubuntu-latest`, with
+`timeout-minutes: 15`, minimal job-level `permissions`, and no app-specific
+logic. `permissions:`
 are **not** inherited from the caller — each consumer job must declare the
 permissions block documented below for every workflow it invokes.
+
+## Runner selection
+
+Each reusable workflow exposes the same optional `runner` input:
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `runner` | `string` | No | `ubuntu-latest` | A hosted runner name or caller-owned self-hosted/ARC selector |
+
+Omitting `runner` is backward-compatible and keeps the existing
+`ubuntu-latest` behavior. An explicit hosted runner selection is also
+supported:
+
+```yaml
+jobs:
+  go-build-test:
+    permissions:
+      contents: read
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1
+    with:
+      runner: ubuntu-latest
+```
+
+For the confirmed ARC integration, a caller may pass the single-string
+selector `lab-runner`:
+
+```yaml
+with:
+  runner: lab-runner
+```
+
+`lab-runner` is caller-owned, not a library default or embedded workflow
+label. The caller's repository must have access to the corresponding ARC
+runner group and label. The selector must resolve to a runner with the
+capabilities required by every action and command in the called workflow.
+This input accepts one string only; it cannot express an array of labels or a
+runner-group object, so the caller must provide a selector that is valid for
+the target runner setup and repeat it on each reusable-workflow call that
+should use that runner.
+
+Self-hosted and ARC runners must provide the action/runtime prerequisites
+themselves. In particular, each `docker-build.yml` job needs a reachable
+Docker daemon and buildx; where ARC uses Docker-in-Docker, the caller's
+runner setup must provide the required privileged DinD arrangement. Consumer
+smoke tests that call an external service also need host `curl`; the
+distroless images do not provide it. This library provisions neither ARC,
+DinD, Docker, `curl`, nor any runner or other infrastructure.
+
+Treat self-hosted execution as a security boundary owned by the caller:
+workflow code and caller-provided commands such as `smoke-test-command` run
+on the selected machine. Use trusted workflow and pull-request sources,
+adequate runner isolation, controlled network access, and least-privilege
+secret exposure. ARC does not make untrusted code safe, and this library does
+not add those controls.
+
+There is no automatic GitHub-hosted-to-ARC failover. A selected runner that
+is unavailable does not cause this library to choose another infrastructure
+class. ARC supplies runner capacity but cannot recover GitHub Actions
+scheduling, API, or control-plane outages.
 
 ## Repository Visibility
 
@@ -188,7 +248,7 @@ Scans repository content for committed secrets.
 
 | Input | Default | Description |
 |---|---|---|
-| *(none)* | | |
+| `runner` | `ubuntu-latest` | Hosted runner name or caller-owned self-hosted/ARC selector |
 
 | Secret | Required | Description |
 |---|---|---|

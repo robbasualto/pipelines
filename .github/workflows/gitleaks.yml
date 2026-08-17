@@ -2,6 +2,12 @@ name: Gitleaks
 
 on:
   workflow_call:
+    inputs:
+      runner:
+        description: "Runner label or hosted runner name."
+        type: string
+        required: false
+        default: ubuntu-latest
     secrets:
       gh_token:
         description: "Optional token used to resolve PR diffs. Falls back to github.token when omitted."
@@ -12,7 +18,7 @@ permissions:
 
 jobs:
   gitleaks:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token || github.token }}

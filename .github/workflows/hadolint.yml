@@ -3,6 +3,11 @@ name: Hadolint
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner label or hosted runner name."
+        type: string
+        required: false
+        default: ubuntu-latest
       dockerfile-path:
         description: "Path to the Dockerfile to lint."
         type: string
@@ -13,7 +18,7 @@ permissions:
 
 jobs:
   hadolint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     steps:
       - name: Checkout

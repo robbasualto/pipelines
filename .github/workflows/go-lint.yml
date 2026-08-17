@@ -3,6 +3,11 @@ name: Go Lint
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner label or hosted runner name."
+        type: string
+        required: false
+        default: ubuntu-latest
       go-version:
         description: "Go toolchain version to install."
         type: string
@@ -21,7 +26,7 @@ permissions:
 
 jobs:
   go-lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     defaults:
       run:

@@ -3,6 +3,11 @@ name: Docker Build
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner label or hosted runner name."
+        type: string
+        required: false
+        default: ubuntu-latest
       image-tag:
         description: "Tag to apply to the locally built image (also exposed as IMAGE_REF)."
         type: string
@@ -29,7 +34,7 @@ permissions:
 
 jobs:
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     env:
       IMAGE_REF: ${{ inputs.image-tag }}
