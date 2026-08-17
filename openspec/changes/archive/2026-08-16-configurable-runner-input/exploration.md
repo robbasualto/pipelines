@@ -10,7 +10,7 @@ Before this change, the `pipelines` repository was an infrastructure-as-code lib
 | `.github/workflows/go-lint.yml` | `go-version`, `golangci-lint-version`, `working-directory`; no secrets | Checkout, setup Go, `gofmt`, and golangci-lint execute on the selected runner. |
 | `.github/workflows/hadolint.yml` | `dockerfile-path`; no secrets | Checkout and the Hadolint action execute on the selected runner. |
 | `.github/workflows/docker-build.yml` | Required `image-tag`; `context`, `dockerfile-path`, `smoke-test-command`, `trivy-version`; no secrets | `docker/build-push-action` uses `load: true`; the caller smoke command runs on the runner and may require Docker plus host `curl`. No push occurs. |
-| `.github/workflows/gitleaks.yml` | Optional `runner` input; optional `gh_token` secret, falling back to `github.token` | Full-history checkout and Gitleaks execute on the selected runner. |
+| `.github/workflows/gitleaks.yml` | No workflow inputs; optional `gh_token` secret, falling back to `github.token` | Full-history checkout and Gitleaks execute on the selected runner. |
 
 The backward-compatible contract is to add the same optional `runner` input to every workflow, with `type: string`, `required: false`, and default `ubuntu-latest`, then use `${{ inputs.runner }}` for that workflow's `runs-on`. GitHub's reusable-workflow syntax supports string `workflow_call` inputs and dynamic runner selection. Omitting the input therefore preserves today's behavior; supplying it changes only job placement. Existing inputs, permissions, secrets, action versions, job dependencies, and pass/fail behavior should remain unchanged.
 
