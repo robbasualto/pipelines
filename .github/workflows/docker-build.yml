@@ -12,6 +12,16 @@ on:
         description: "Tag to apply to the locally built image (also exposed as IMAGE_REF)."
         type: string
         required: true
+      push:
+        description: "Whether to publish the locally validated image to the selected registry."
+        type: boolean
+        required: false
+        default: false
+      registry:
+        description: "Registry host or address used to qualify image-tag when push is true."
+        type: string
+        required: false
+        default: ""
       context:
         description: "Docker build context."
         type: string
@@ -37,18 +47,37 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     env:
-      IMAGE_REF: ${{ inputs.image-tag }}
+      IMAGE_REF: ${{ inputs.push && format('{0}/{1}', inputs.registry, inputs.image-tag) || inputs.image-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build image (no push)
+      - name: Validate push configuration
+        if: inputs.push
+        env:
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          set -eu
+          if [ -z "$REGISTRY" ]; then
+            echo "::error::push=true requires a non-empty registry input"
+            exit 1
+          fi
+          if [ -z "${NEXUS_DOCKER_PUSH_USERNAME:-}" ]; then
+            echo "::error::push=true requires NEXUS_DOCKER_PUSH_USERNAME in the selected runner environment"
+            exit 1
+          fi
+          if [ -z "${NEXUS_DOCKER_PUSH_PASSWORD:-}" ]; then
+            echo "::error::push=true requires NEXUS_DOCKER_PUSH_PASSWORD in the selected runner environment"
+            exit 1
+          fi
+
+      - name: Build image locally
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile-path }}
           push: false
-          tags: ${{ inputs.image-tag }}
+          tags: ${{ env.IMAGE_REF }}
           load: true
 
       - name: Smoke test
@@ -64,3 +93,14 @@ jobs:
           image-ref: ${{ env.IMAGE_REF }}
           version: ${{ inputs.trivy-version }}
           exit-code: "0"
+
+      - name: Login and push image
+        if: inputs.push
+        env:
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          set -eu
+          printf '%s' "$NEXUS_DOCKER_PUSH_PASSWORD" | docker login "$REGISTRY" \
+            --username "$NEXUS_DOCKER_PUSH_USERNAME" \
+            --password-stdin
+          docker push "$IMAGE_REF"

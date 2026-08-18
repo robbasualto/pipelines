@@ -28,7 +28,7 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.2
     with:
       runner: ubuntu-latest
 ```
@@ -91,10 +91,10 @@ is a valid alternative — but the moment any public repo needs to call in,
 Consumers reference workflows as:
 
 ```yaml
-uses: robbasualto/pipelines/.github/workflows/<name>.yml@v1.0.1
+uses: robbasualto/pipelines/.github/workflows/<name>.yml@v1.0.2
 ```
 
-`v1.0.1` is the current immutable release and the first published release
+`v1.0.2` is the current immutable release with opt-in Docker publishing.
 containing the configurable `runner` input. Pin it when reproducibility and
 an explicit release boundary matter.
 
@@ -103,7 +103,7 @@ It is never force-moved onto a change that alters an existing input's meaning,
 removes an input/output, or changes pass/fail semantics. A breaking change
 ships under a new major tag (e.g. `@v2`); `@v1` keeps pointing at the last
 compatible release. This README does not assume that `@v1` has advanced to
-`v1.0.1`; moving a major tag requires an explicit maintainer release action.
+`v1.0.2`; moving a major tag requires an explicit maintainer release action.
 
 ### Manual tagging steps (maintainer only)
 
@@ -144,7 +144,7 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.2
 ```
 
 ### `go-lint.yml`
@@ -167,7 +167,7 @@ jobs:
   go-lint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.2
     with:
       golangci-lint-version: v2.13.0 # optional override, no pipelines release needed
 ```
@@ -193,31 +193,46 @@ jobs:
   hadolint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.2
 ```
 
 ### `docker-build.yml`
 
 Builds a container image locally, optionally smoke-tests it, and reports
-(non-blocking) vulnerability scan results. **Never pushes to any registry.**
+(non-blocking) vulnerability scan results. Publishing is opt-in and happens
+only after the local validation steps succeed.
 
 | Input | Default | Description |
 |---|---|---|
 | `image-tag` | *(required)* | Tag applied to the locally built image; also exposed as the job-level `IMAGE_REF` env var |
+| `push` | `false` | Build and locally validate the image, then publish it when `true` |
+| `registry` | `""` | Registry host or address used to qualify `image-tag` when `push` is `true` |
 | `context` | `"."` | Docker build context |
 | `dockerfile-path` | `"Dockerfile"` | Path to the Dockerfile to build |
 | `smoke-test-command` | `""` | Optional shell command to smoke-test the built image. Skipped entirely when empty |
 | `trivy-version` | `"v0.70.0"` | Trivy version for the report-only scan (see note below) |
 
-- Secrets: none
+- Secrets: none declared. Push mode expects `NEXUS_DOCKER_PUSH_USERNAME` and
+  `NEXUS_DOCKER_PUSH_PASSWORD` in the selected runner environment; the
+  workflow does not accept credentials as caller inputs or print them.
 - Permissions required by the caller: `contents: read`
-- Steps: checkout, `docker/build-push-action@v6` (`push: false`, `load: true`
-  — no login/push step exists in this workflow), optional smoke-test step,
-  `aquasecurity/trivy-action@v0.36.0` (`exit-code: "0"`, `continue-on-error: true`).
+- Steps: checkout, push-disabled/local-load
+  `docker/build-push-action@v6` (`push: false`, `load: true`), optional
+  smoke-test step, `aquasecurity/trivy-action@v0.36.0`
+  (`exit-code: "0"`, `continue-on-error: true`), and conditional Docker
+  login/push after validation.
 - **`IMAGE_REF` is a job-level `env` var, not a `workflow_call` output.**
-  Since `push: false` is hardcoded, the built image only exists in this
-  job's local Docker daemon — there is nothing durable for a downstream
-  job to reference. A `workflow_call` output would be misleading.
+  With the default `push: false`, it is exactly `image-tag`. With
+  `push: true`, it is `${registry}/${image-tag}` and remains locally loaded
+  for smoke testing and Trivy before publication.
+- The default invocation remains local-only: it uses the caller's image tag,
+  `push: false`, and `load: true`, with no registry login or push.
+- Push mode requires a non-empty `registry`. The selected runner must expose
+  `NEXUS_DOCKER_PUSH_USERNAME` and `NEXUS_DOCKER_PUSH_PASSWORD`; credentials
+  are passed to `docker login` through stdin. In the lab deployment,
+  `NEXUS_REGISTRY_HOST` is the runner-provided registry-host contract/default
+  reference, not a secret. The reusable workflow remains generic and callers
+  pass `registry` explicitly.
 - The smoke-test command is passed via `env: SMOKE_TEST_COMMAND` and
   executed as `bash -c "$SMOKE_TEST_COMMAND"` — never inlined directly into
   `run:` — so caller-supplied values containing `"`, `$(...)`, or `}}` are
@@ -238,10 +253,21 @@ jobs:
     needs: [go-build-test, go-lint, hadolint]
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.2
     with:
       image-tag: go-hadolint-poc:ci
       smoke-test-command: "docker run --rm go-hadolint-poc:ci --version"
+```
+
+Push-mode callers keep the same local validation semantics and opt in
+explicitly:
+
+```yaml
+with:
+  image-tag: rightsizing-tps/checkout:${{ github.sha }}
+  push: true
+  registry: 172.19.0.5:30083
+  smoke-test-command: "docker run --rm \"$IMAGE_REF\" --version"
 ```
 
 ### `gitleaks.yml`
@@ -268,7 +294,7 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.2
     # secrets: inherit  # optional — omitting it still works via github.token fallback
 ```
 
@@ -277,7 +303,7 @@ jobs:
 This snippet shows how `go-hadolint-poc` **would** consume these workflows.
 It is documentation only — `go-hadolint-poc` is not modified by this
 change, and the example pins to the current immutable runner-capable release
-`@v1.0.1`.
+`@v1.0.2`.
 
 ```yaml
 # go-hadolint-poc/.github/workflows/ci.yml (illustrative — not applied)
@@ -291,23 +317,23 @@ jobs:
   go-build-test:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/go-build-test.yml@v1.0.2
 
   go-lint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/go-lint.yml@v1.0.2
 
   hadolint:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/hadolint.yml@v1.0.2
 
   docker-build:
     needs: [go-build-test, go-lint, hadolint]
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/docker-build.yml@v1.0.2
     with:
       image-tag: go-hadolint-poc:${{ github.sha }}
       smoke-test-command: "docker run --rm go-hadolint-poc:${{ github.sha }} --version"
@@ -315,7 +341,7 @@ jobs:
   gitleaks:
     permissions:
       contents: read
-    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.1
+    uses: robbasualto/pipelines/.github/workflows/gitleaks.yml@v1.0.2
 ```
 
 Notes on this graph:
